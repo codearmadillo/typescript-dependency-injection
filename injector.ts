@@ -1,6 +1,6 @@
 import "reflect-metadata";
 
-class DependencyInjector {
+export const Injector = new class {
   private readonly diBuffer: Map<string, any> = new Map();
   private readonly diTokenKey: string = "diInjectionTokenKey";
   get<T>(injectionToken: new (...args: any[]) => T) {
@@ -25,8 +25,14 @@ class DependencyInjector {
       const token = this.generateDiTokenValue();
       /** Set metadata on prototype */
       Reflect.defineMetadata(this.diTokenKey, token, injectionToken.prototype);
+      /** Resolve dependencies */
+      const dependencies = (
+        Reflect.getMetadata("design:paramtypes", injectionToken) || []
+      ).map((dependencyInjectionToken: new (...args: any[]) => any) => {
+        return Injector.get<any>(dependencyInjectionToken);
+      });
       /** Create entity */
-      const entity = new injectionToken();
+      const entity: T = new injectionToken(...dependencies);
       /** Create instance of class and return it */
       this.diBuffer.set(token, entity);
       /** Return entity */
@@ -43,8 +49,8 @@ class DependencyInjector {
       })
       .join("");
   }
-}
-export const Injector = new DependencyInjector();
+}();
+
 export const Injectable = () => {
   return (target: new (...args: any[]) => any) => {
     return target;
